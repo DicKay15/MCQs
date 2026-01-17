@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardTitle, Button, Select } from "@/components/ui";
+import { Card, CardTitle, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getHistory } from "@/lib/api";
 import type { QuizHistoryItem, PaginationInfo } from "@mcqs/shared";
@@ -18,7 +18,7 @@ export default function HistoryPage() {
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subject, setSubject] = useState<string>("");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -27,8 +27,7 @@ export default function HistoryPage() {
       try {
         const data = await getHistory({
           page,
-          limit: 10,
-          subject: subject || undefined,
+          limit: 50,
         });
         setQuizzes(data.quizzes);
         setPagination(data.pagination);
@@ -39,34 +38,65 @@ export default function HistoryPage() {
       }
     }
     load();
-  }, [page, subject]);
+  }, [page]);
 
-  const subjectOptions = [
-    { value: "", label: "All Subjects" },
-    ...SUBJECTS.map((s) => ({ value: s, label: SUBJECT_LABELS[s] })),
-  ];
+  const toggleSubject = (subject: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(subject)
+        ? prev.filter((s) => s !== subject)
+        : [...prev, subject]
+    );
+  };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString("en-IN", {
+  const formatDateTime = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    const dateStr = date.toLocaleDateString("en-IN", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
+    const timeStr = date.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr} · ${timeStr}`;
   };
+
+  const filteredQuizzes = selectedSubjects.length === 0
+    ? quizzes
+    : quizzes.filter((q) => selectedSubjects.includes(q.subject));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <CardTitle>Quiz History</CardTitle>
-        <div className="w-48">
-          <Select
-            options={subjectOptions}
-            value={subject}
-            onChange={(e) => {
-              setSubject(e.target.value);
-              setPage(1);
-            }}
-          />
+      {/* Header */}
+      <div className="mb-6">
+        <CardTitle className="mb-4">Quiz History</CardTitle>
+
+        {/* Filter Chips */}
+        <div className="flex flex-wrap gap-2">
+          {SUBJECTS.map((subject) => (
+            <button
+              key={subject}
+              onClick={() => toggleSubject(subject)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                selectedSubjects.includes(subject)
+                  ? "bg-primary-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              )}
+            >
+              {SUBJECT_LABELS[subject]}
+            </button>
+          ))}
+          {selectedSubjects.length > 0 && (
+            <button
+              onClick={() => setSelectedSubjects([])}
+              className="px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Clear all
+            </button>
+          )}
         </div>
       </div>
 
@@ -79,9 +109,11 @@ export default function HistoryPage() {
         <Card className="text-center py-12">
           <p className="text-red-600">{error}</p>
         </Card>
-      ) : quizzes.length === 0 ? (
+      ) : filteredQuizzes.length === 0 ? (
         <Card className="text-center py-12">
-          <p className="text-gray-500 mb-4">No quizzes found.</p>
+          <p className="text-gray-500 mb-4">
+            {selectedSubjects.length > 0 ? "No quizzes found for selected subjects." : "No quizzes found."}
+          </p>
           <Link href="/quiz/new">
             <Button>Create Your First Quiz</Button>
           </Link>
@@ -89,72 +121,104 @@ export default function HistoryPage() {
       ) : (
         <>
           <div className="space-y-3">
-            {quizzes.map((quiz) => {
+            {filteredQuizzes.map((quiz) => {
               const hasAttempt = quiz.attemptId && quiz.attemptStatus === "completed";
               const percentage = hasAttempt && quiz.score !== undefined
                 ? Math.round((quiz.score / quiz.questionCount) * 100)
                 : null;
 
               return (
-                <Card key={quiz.id} className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-gray-900">
-                        {SUBJECT_LABELS[quiz.subject as keyof typeof SUBJECT_LABELS]}
-                      </span>
-                      {quiz.theme && (
-                        <span className="text-gray-500">- {quiz.theme}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <span>
-                        {DIFFICULTY_LABELS[quiz.difficulty as keyof typeof DIFFICULTY_LABELS]}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        {quiz.styles.map((s) => QUESTION_STYLE_LABELS[s as keyof typeof QUESTION_STYLE_LABELS]).join(", ")}
-                      </span>
-                      <span>•</span>
-                      <span>{quiz.questionCount} questions</span>
-                      <span>•</span>
-                      <span>{formatDate(quiz.createdAt)}</span>
-                    </div>
-                  </div>
+                <Link
+                  key={quiz.id}
+                  href={
+                    hasAttempt
+                      ? `/quiz/${quiz.id}/results?attempt=${quiz.attemptId}`
+                      : `/quiz/${quiz.id}`
+                  }
+                  className="block"
+                >
+                  <Card className="p-5 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08)] transition-shadow cursor-pointer relative">
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Left side: All info */}
+                      <div className="min-w-0">
+                        {/* Title row: Subject · Date, Time */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900">
+                            {SUBJECT_LABELS[quiz.subject as keyof typeof SUBJECT_LABELS]}
+                          </h3>
+                          {quiz.theme && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span className="text-sm text-gray-500 truncate">{quiz.theme}</span>
+                            </>
+                          )}
+                          <span className="text-gray-300">·</span>
+                          <span className="text-[13px] text-gray-400">{formatDateTime(quiz.createdAt)}</span>
+                        </div>
 
-                  {hasAttempt && percentage !== null ? (
-                    <div className="text-right">
+                        {/* Row 2: Level · Questions · New */}
+                        <div className="flex items-center gap-2 mt-1.5 text-sm text-gray-500">
+                          <span>
+                            {DIFFICULTY_LABELS[quiz.difficulty as keyof typeof DIFFICULTY_LABELS]}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span>{quiz.questionCount} questions</span>
+                          {!hasAttempt && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span className="text-xs font-medium text-primary-500">New</span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Styles row */}
+                        {quiz.styles.length > 0 && (
+                          <p className="mt-1.5 text-xs text-gray-400 truncate">
+                            {quiz.styles.map((s) => QUESTION_STYLE_LABELS[s as keyof typeof QUESTION_STYLE_LABELS]).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Right side: Score or Button */}
+                      <div className="flex-shrink-0">
+                        {hasAttempt && percentage !== null ? (
+                          <span
+                            className={cn(
+                              "text-xl font-bold tabular-nums",
+                              percentage >= 80
+                                ? "text-green-600"
+                                : percentage >= 60
+                                ? "text-amber-600"
+                                : "text-red-600"
+                            )}
+                          >
+                            {quiz.score}/{quiz.questionCount}
+                          </span>
+                        ) : (
+                          <Button variant="secondary" size="sm">
+                            Take Quiz
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Percentage tag - bottom right */}
+                    {hasAttempt && percentage !== null && (
                       <span
                         className={cn(
-                          "text-2xl font-bold",
+                          "absolute bottom-4 right-5 text-xs font-medium px-2 py-0.5 rounded",
                           percentage >= 80
-                            ? "text-green-600"
+                            ? "bg-green-50 text-green-600"
                             : percentage >= 60
-                            ? "text-amber-600"
-                            : "text-red-600"
+                            ? "bg-amber-50 text-amber-600"
+                            : "bg-red-50 text-red-600"
                         )}
                       >
                         {percentage}%
                       </span>
-                      <p className="text-xs text-gray-500">
-                        {quiz.score}/{quiz.questionCount}
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">Not attempted</span>
-                  )}
-
-                  <Link
-                    href={
-                      hasAttempt
-                        ? `/quiz/${quiz.id}/results?attempt=${quiz.attemptId}`
-                        : `/quiz/${quiz.id}`
-                    }
-                  >
-                    <Button variant="secondary" size="sm">
-                      {hasAttempt ? "View Results" : "Take Quiz"}
-                    </Button>
-                  </Link>
-                </Card>
+                    )}
+                  </Card>
+                </Link>
               );
             })}
           </div>

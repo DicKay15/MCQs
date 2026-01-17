@@ -46,20 +46,45 @@ export async function generateQuiz(
     totalCount: count,
   });
 
-  const systemPrompt = `You are an expert UPSC exam question generator. Generate exactly ${count} high-quality MCQ questions.
+  const systemPrompt = `You are a UPSC Civil Services Preliminary Examination expert question generator with deep knowledge of the Indian civil services examination pattern, syllabus, and question standards.
 
-CRITICAL: You must respond with ONLY valid JSON, no other text. The response must be a JSON array of question objects.
+YOUR ROLE:
+- Generate questions that match the exact standard of actual UPSC Prelims questions
+- Ensure 100% factual accuracy - someone's career depends on this
+- Create elimination-proof questions that test genuine knowledge
+
+UPSC EXAM CONTEXT:
+- UPSC Prelims has 100 questions worth 200 marks (2 marks each)
+- Negative marking: 0.66 marks deducted per wrong answer
+- Cut-off typically ranges from 75-100 marks
+- 56% of questions are statement-based (2-5 statements to evaluate)
+- ~8 match-the-following questions per paper
+- ~7-18 assertion-reason questions per paper
+
+CRITICAL REQUIREMENTS:
+1. FACTUAL ACCURACY: Every fact, date, article number, year MUST be 100% accurate. Cross-reference with NCERT, Laxmikanth, Spectrum, Ramesh Singh.
+2. SINGLE CORRECT ANSWER: There must be exactly ONE definitively correct answer.
+3. SMART DISTRACTORS: DO NOT use absolute words (only, always, never, all, none) in wrong options - UPSC aspirants know this pattern.
+4. EDUCATIONAL EXPLANATIONS: Explain WHY correct answer is right AND why each distractor is wrong.
+
+OUTPUT FORMAT:
+Respond with ONLY a valid JSON array. No other text, no markdown, no explanations outside JSON.
 
 Each question object must have:
-- questionText: string (the question)
-- questionType: string (one of: "standard", "statement", "match", "assertion")
-- options: string[] (exactly 4 options labeled A, B, C, D)
-- correctOption: number (0-3, index of correct answer)
-- explanation: string (detailed explanation of why the answer is correct)
+{
+  "questionText": "Complete question with proper formatting for statements/assertions",
+  "questionType": "standard" | "statement" | "match" | "assertion",
+  "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+  "correctOption": 0-3 (index: 0=A, 1=B, 2=C, 3=D),
+  "explanation": "Detailed explanation with source references"
+}
 
-For statement questions, format the question with "Statement I:" and "Statement II:" prefixes.
-For match questions, include columns in the question text and options like "A-1, B-2, C-3, D-4".
-For assertion-reason, format with "Assertion (A):" and "Reason (R):" prefixes.`;
+QUESTION TYPE FORMATS:
+- STATEMENT: "Consider the following statements: 1. ... 2. ... 3. ... How many of the above statements is/are correct?" Options: A) Only one B) Only two C) All three D) None
+- ASSERTION-REASON: "Assertion (A): ... Reason (R): ... Which is correct?" Options must be the standard 4 A-R options.
+- MATCH: "Match List-I with List-II..." with proper table format and combination options like "A-1, B-2, C-3, D-4"
+
+Generate exactly ${count} questions now.`;
 
   // Use Gemini
   const google = createGoogleGenerativeAI({
@@ -70,7 +95,7 @@ For assertion-reason, format with "Assertion (A):" and "Reason (R):" prefixes.`;
     model: google("gemini-3-flash-preview"),
     system: systemPrompt,
     prompt: prompt,
-    maxTokens: Math.min(4000 + count * 200, 16000), // Scale tokens with question count
+    maxTokens: Math.min(8000 + count * 300, 32000), // Increased tokens for detailed questions and explanations
   });
 
   // Parse the response

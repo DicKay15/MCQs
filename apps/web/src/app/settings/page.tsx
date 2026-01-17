@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardTitle, CardDescription, Button, Input, RadioGroup } from "@/components/ui";
+import { Card, CardTitle, CardDescription, Button, Input } from "@/components/ui";
 import { getSettings, updateSettings, resetApiKey } from "@/lib/api";
 import {
-  MODEL_PROVIDERS,
   MODEL_PROVIDER_LABELS,
   MIN_QUESTION_COUNT,
   MAX_QUESTION_COUNT,
@@ -87,15 +86,6 @@ export default function SettingsPage() {
     }
   };
 
-  const modelOptions = MODEL_PROVIDERS.map((m) => ({
-    value: m,
-    label: MODEL_PROVIDER_LABELS[m],
-    description:
-      m === "gemini"
-        ? "Uses Gemini 3 Flash - default model (uses server key if not set)"
-        : "Uses GPT-4 - requires your API key",
-  }));
-
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -109,88 +99,144 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <CardTitle className="mb-6">Settings</CardTitle>
+      <CardTitle className="mb-2">Settings</CardTitle>
+      <CardDescription className="mb-6">
+        Choose your AI model and configure API keys
+      </CardDescription>
 
-      <div className="space-y-6">
-        {/* Model Selection */}
-        <Card>
-          <CardTitle className="text-base">AI Model</CardTitle>
-          <CardDescription>
-            Choose the AI model for generating questions
-          </CardDescription>
-          <div className="mt-4">
-            <RadioGroup
-              name="model"
-              options={modelOptions}
-              value={defaultModel}
-              onChange={setDefaultModel}
-            />
-          </div>
-        </Card>
-
-        {/* API Keys */}
-        <Card>
-          <CardTitle className="text-base">API Keys</CardTitle>
-          <CardDescription>
-            Add your own API keys for premium models. Gemini uses the server default if not set.
-          </CardDescription>
-          <div className="mt-4 space-y-4">
-            <div>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Input
-                    id="gemini-key"
-                    label="Google Gemini API Key"
-                    type="password"
-                    placeholder={hasGeminiKey ? "••••••••••••••••" : "AI..."}
-                    value={geminiKey}
-                    onChange={(e) => setGeminiKey(e.target.value)}
-                    helperText={
-                      hasGeminiKey
-                        ? "Your custom key is saved. Reset to use server default."
-                        : "Optional - leave empty to use server default"
-                    }
-                  />
-                </div>
-                {hasGeminiKey && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleResetKey("gemini")}
-                    loading={resetting === "gemini"}
-                    className="mb-5"
-                  >
-                    Reset
-                  </Button>
+      <div className="space-y-4">
+        {/* Gemini Card */}
+        <Card
+          className={`cursor-pointer transition-all ${
+            defaultModel === "gemini"
+              ? "ring-2 ring-primary-500 bg-primary-50/30"
+              : "hover:bg-gray-50"
+          }`}
+          onClick={() => setDefaultModel("gemini")}
+        >
+          <div className="flex items-start gap-3">
+            <div className="pt-0.5">
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  defaultModel === "gemini"
+                    ? "border-primary-500 bg-primary-500"
+                    : "border-gray-300"
+                }`}
+              >
+                {defaultModel === "gemini" && (
+                  <div className="w-2 h-2 bg-white rounded-full" />
                 )}
               </div>
             </div>
-            <div>
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Input
-                    id="openai-key"
-                    label="OpenAI API Key"
-                    type="password"
-                    placeholder={hasOpenaiKey ? "••••••••••••••••" : "sk-..."}
-                    value={openaiKey}
-                    onChange={(e) => setOpenaiKey(e.target.value)}
-                    helperText={
-                      hasOpenaiKey
-                        ? "Key already saved. Enter a new key to replace it."
-                        : "Required to use GPT-4 model"
-                    }
-                  />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">
+                  {MODEL_PROVIDER_LABELS.gemini}
+                </CardTitle>
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  Default
+                </span>
+              </div>
+              <CardDescription className="mt-1">
+                Uses Gemini 3 Flash Preview - fast and capable. Server provides a default key.
+              </CardDescription>
+
+              {/* Gemini API Key */}
+              <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Input
+                      id="gemini-key"
+                      label="Your API Key (Optional)"
+                      type="password"
+                      placeholder={hasGeminiKey ? "••••••••••••••••" : "AI..."}
+                      value={geminiKey}
+                      onChange={(e) => setGeminiKey(e.target.value)}
+                      helperText={
+                        hasGeminiKey
+                          ? "Custom key saved. Reset to use server default."
+                          : "Leave empty to use server's default key"
+                      }
+                    />
+                  </div>
+                  {hasGeminiKey && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleResetKey("gemini")}
+                      loading={resetting === "gemini"}
+                      className="mb-5"
+                    >
+                      Reset
+                    </Button>
+                  )}
                 </div>
-                {hasOpenaiKey && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleResetKey("openai")}
-                    loading={resetting === "openai"}
-                    className="mb-5"
-                  >
-                    Reset
-                  </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* OpenAI Card */}
+        <Card
+          className={`cursor-pointer transition-all ${
+            defaultModel === "openai"
+              ? "ring-2 ring-primary-500 bg-primary-50/30"
+              : "hover:bg-gray-50"
+          }`}
+          onClick={() => setDefaultModel("openai")}
+        >
+          <div className="flex items-start gap-3">
+            <div className="pt-0.5">
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  defaultModel === "openai"
+                    ? "border-primary-500 bg-primary-500"
+                    : "border-gray-300"
+                }`}
+              >
+                {defaultModel === "openai" && (
+                  <div className="w-2 h-2 bg-white rounded-full" />
                 )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-base">
+                {MODEL_PROVIDER_LABELS.openai}
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Uses GPT-4 - requires your own API key from OpenAI.
+              </CardDescription>
+
+              {/* OpenAI API Key */}
+              <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Input
+                      id="openai-key"
+                      label="Your API Key"
+                      type="password"
+                      placeholder={hasOpenaiKey ? "••••••••••••••••" : "sk-..."}
+                      value={openaiKey}
+                      onChange={(e) => setOpenaiKey(e.target.value)}
+                      helperText={
+                        hasOpenaiKey
+                          ? "Key saved. Enter new key to replace."
+                          : "Required to use GPT-4"
+                      }
+                    />
+                  </div>
+                  {hasOpenaiKey && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleResetKey("openai")}
+                      loading={resetting === "openai"}
+                      className="mb-5"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

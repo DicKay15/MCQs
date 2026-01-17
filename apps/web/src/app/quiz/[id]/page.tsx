@@ -262,7 +262,12 @@ export default function QuizPage() {
                 return (
                   <button
                     key={q.id}
-                    onClick={() => setCurrentQuestion(i)}
+                    onClick={() => {
+                      setCurrentQuestion(i);
+                      document
+                        .getElementById(`question-${i}`)
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
                     className={cn(
                       "w-8 h-8 text-sm font-medium rounded-lg transition-colors",
                       isCurrent && "ring-2 ring-primary-500",
