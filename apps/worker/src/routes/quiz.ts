@@ -4,7 +4,6 @@ import { nanoid } from "nanoid";
 import type { Env } from "../types";
 import { generateQuizRequestSchema } from "@mcqs/shared";
 import { generateQuiz } from "../services/llm";
-import { verifyTurnstile } from "../middleware/turnstile";
 import { rateLimit } from "../middleware/rateLimit";
 
 const quiz = new Hono<{ Bindings: Env }>();
@@ -12,7 +11,6 @@ const quiz = new Hono<{ Bindings: Env }>();
 // Generate a new quiz
 quiz.post(
   "/generate",
-  verifyTurnstile,
   rateLimit({ limit: 5, window: 60 }),
   zValidator("json", generateQuizRequestSchema),
   async (c) => {
